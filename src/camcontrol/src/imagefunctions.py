@@ -96,3 +96,52 @@ def extractpixels(imgBGR, plotall=False, plotid=0):
 #
 #    # Return the combined image
 #    return combined
+
+def perspectiveTransform(undst_rgb, img_bin, plotall=False, plotid=0):
+    # Define perspective transformation area
+    img_size = (img_bin.shape[1], img_bin.shape[0]) #(1280, 720)
+
+	#[8,220],[200,30],[410,30],[640,220]
+	#[0,290],[200,100],[440,100],[640,290]
+    top_left_src = [200,100] #[578, 460]
+    top_right_src = [440,100] #[702, 460]
+    bottom_right_src = [640,290] #[1088, 720]
+    bottom_left_src = [0,290] #[192, 720]
+
+    top_left_dst = [200,100] #[320, 0]
+    top_right_dst = [440,100] #[960, 0]
+    bottom_right_dst = [440, 290] #[960, 720]
+    bottom_left_dst = [200,290] #[320,720]
+
+    src = np.float32( [ top_left_src, top_right_src, bottom_right_src, bottom_left_src ] )
+    dst = np.float32( [ top_left_dst, top_right_dst, bottom_right_dst, bottom_left_dst ] )
+
+    # perform transformation
+    M = cv2.getPerspectiveTransform(src, dst)
+    Minv = cv2.getPerspectiveTransform(dst, src)
+    warped = cv2.warpPerspective(undst_rgb, M, img_size, flags=cv2.INTER_LINEAR)
+    warped_bin = cv2.warpPerspective(img_bin, M, img_size, flags=cv2.INTER_LINEAR)
+
+    return M, Minv, warped, warped_bin
+
+def rect_is_all_white(img_bin,x1,y1,x2,y2):
+	if (np.amax(img_bin[y1:y2,x1:x2])>0.):
+		return False
+	else:
+		return True
+
+def find_white_patch(img_bin):
+	nrows=480 # img_bin.shape[0] #480
+	ncols=640 # img_bin.shape[1] #640
+	xstep = 10
+	for ss in range(nrows,10,-10):
+		xtravel = int((ncols-ss)/2/xstep)
+		for xx in range(0,xtravel+1):	
+			xshift = xx*xstep	
+			#shift left
+			if rect_is_all_white(img_bin,int(ncols/2-ss/2-xshift),nrows-ss,int(ncols/2+ss/2-xshift),nrows):
+				return ss, -xshift
+			#shift right
+			if rect_is_all_white(img_bin,int(ncols/2-ss/2+xshift),nrows-ss,int(ncols/2+ss/2+xshift),nrows):
+				return ss, xshift
+	return -1,0 
